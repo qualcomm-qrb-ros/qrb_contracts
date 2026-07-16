@@ -1,0 +1,43 @@
+// Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+// SPDX-License-Identifier: BSD-3-Clause-Clear
+
+syntax = "proto3";
+
+package qrb.contract.vision.v1;
+
+import "qrb/contract/common/v1/header.proto";
+
+message ImageMessage {
+  .qrb.contract.common.v1.Header header = 1;
+  oneof payload {
+    Image image = 2;
+    CompressedImage compressed_image = 3;
+    SharedMemoryImage shared_memory_image = 4;
+  }
+}
+
+message Image {
+  uint32 height = 1;
+  uint32 width = 2;
+  string encoding = 3;
+  uint32 is_bigendian = 4;
+  uint32 step = 5;
+  bytes data = 6;
+}
+
+message CompressedImage {
+  string format = 1;
+  bytes data = 2;
+}
+
+message SharedMemoryImage {
+  uint32 height = 1;
+  uint32 width = 2;
+  string encoding = 3;
+  uint32 is_bigendian = 4;
+  uint32 step = 5;
+  string shm_name = 10;
+  uint64 offset = 11;
+  uint64 size = 12;
+  uint64 generation = 13;
+}

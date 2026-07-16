@@ -1,0 +1,65 @@
+// Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+// SPDX-License-Identifier: BSD-3-Clause-Clear
+
+syntax = "proto3";
+
+package qrb.contract.control.v1;
+
+import "qrb/contract/common/v1/header.proto";
+import "qrb/contract/geometry/v1/pose.proto";
+
+// Robot control protocol example for validating protobuf generation and
+// serialization in this workspace.
+message RobotCommandMessage {
+  .qrb.contract.common.v1.Header header = 1;
+  RobotCommand command = 2;
+}
+
+message RobotCommand {
+  CommandType type = 1;
+  oneof payload {
+    MotionCommand motion = 10;
+    SystemCommand system = 11;
+  }
+}
+
+enum CommandType {
+  COMMAND_TYPE_UNSPECIFIED = 0;
+  COMMAND_TYPE_MOTION = 1;
+  COMMAND_TYPE_SYSTEM = 2;
+}
+
+message MotionCommand {
+  double linear_mps = 1;
+  double angular_radps = 2;
+  double duration_sec = 3;
+}
+
+message SystemCommand {
+  SystemAction action = 1;
+  string reason = 2;
+}
+
+enum SystemAction {
+  SYSTEM_ACTION_UNSPECIFIED = 0;
+  SYSTEM_ACTION_ESTOP = 1;
+  SYSTEM_ACTION_RESET = 2;
+}
+
+message RobotStatusMessage {
+  .qrb.contract.common.v1.Header header = 1;
+  RobotStatus status = 2;
+}
+
+message RobotStatus {
+  Health health = 1;
+  .qrb.contract.geometry.v1.Pose2D pose = 2;
+  double battery_percent = 3;
+}
+
+enum Health {
+  HEALTH_UNSPECIFIED = 0;
+  HEALTH_OK = 1;
+  HEALTH_WARN = 2;
+  HEALTH_ERROR = 3;
+}

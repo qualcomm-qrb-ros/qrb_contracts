@@ -1,0 +1,21 @@
+// Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+// SPDX-License-Identifier: BSD-3-Clause-Clear
+
+syntax = "proto3";
+
+package qrb.contract.common.v1;
+
+import "qrb/contract/common/v1/time.proto";
+
+// Common metadata carried by top-level protocol messages.
+message Header {
+  // ROS 2 compatible timestamp and coordinate frame metadata.
+  Time stamp = 1;
+  string frame_id = 2;
+
+  // QRB contract extensions for stream identity, ordering, and tracing.
+  string source_id = 10;
+  string stream_id = 11;
+  uint64 sequence = 12;
+  string correlation_id = 13;
+}
