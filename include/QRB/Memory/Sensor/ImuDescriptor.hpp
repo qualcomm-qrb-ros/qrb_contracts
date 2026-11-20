@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <iterator>
+#include <utility>
 
 namespace QRB
 {
@@ -28,7 +29,7 @@ namespace Memory
  * @param name          Human-readable buffer name.
  * @param pBuf          Virtual address of the DMA buffer.
  * @param size          Total allocated size of the DMA buffer (bytes).
- * @param type          Buffer type tag (@c QC_BUFFER_TYPE_CUSTOM_0 for IMU).
+ * @param type          Buffer type tag (@c QC_BUFFER_TYPE_CUSTOM_3 for IMU).
  * @param alignment     Alignment of the buffer.
  * @param cache         Cache attributes.
  * @param allocatorType Allocator used to allocate the buffer.
@@ -60,12 +61,13 @@ public:
         angular_velocity(),
         linear_acceleration()
     {
-        type = QC::QC_BUFFER_TYPE_CUSTOM_0;
+        type = QC::QC_BUFFER_TYPE_CUSTOM_3;
     }
 
     ~ImuDescriptor() override = default;
 
     ImuDescriptor( const ImuDescriptor &other ) = default;
+    ImuDescriptor( ImuDescriptor &&other ) = default;
 
     // Inherit the other assignment overloads of the base class, as qcnode descriptors do.
     using QC::Memory::BufferDescriptor_t::operator=;
@@ -76,19 +78,24 @@ public:
      * Copies all base-class fields; IMU-specific fields are left
      * unchanged so the caller can set them afterwards.
      */
-    ImuDescriptor &operator=( const QC::Memory::BufferDescriptor_t &other );
+    ImuDescriptor &operator=( const QC::Memory::BufferDescriptor_t &other ) noexcept override;
 
     /**
      * @brief Copy-assign from another @c ImuDescriptor_t, copying every field one by one.
      */
-    ImuDescriptor &operator=( const ImuDescriptor &other );
+    ImuDescriptor &operator=( const ImuDescriptor &other ) noexcept;
+
+    /**
+     * @brief Move-assign from another @c ImuDescriptor_t.
+     */
+    ImuDescriptor &operator=( ImuDescriptor &&other ) noexcept;
 
     /**
      * @brief Copy-assign from the root @c QCBufferDescriptorBase_t.
      *
      * Dispatches to the most derived overload that @p other is an instance of.
      */
-    ImuDescriptor &operator=( const QC::Memory::QCBufferDescriptorBase_t &other );
+    ImuDescriptor &operator=( const QC::Memory::QCBufferDescriptorBase_t &other ) noexcept override;
 
     // -------------------------------------------------------------------------
     // Data members
@@ -108,19 +115,19 @@ public:
 
 } ImuDescriptor_t;
 
-inline ImuDescriptor &ImuDescriptor::operator=( const QC::Memory::BufferDescriptor_t &other )
+inline ImuDescriptor &ImuDescriptor::operator=( const QC::Memory::BufferDescriptor_t &other ) noexcept
 {
     QC::Memory::BufferDescriptor_t::operator=( other );
-    this->type = QC::QC_BUFFER_TYPE_CUSTOM_0;
+    this->type = QC::QC_BUFFER_TYPE_CUSTOM_3;
     return *this;
 }
 
-inline ImuDescriptor &ImuDescriptor::operator=( const ImuDescriptor &other )
+inline ImuDescriptor &ImuDescriptor::operator=( const ImuDescriptor &other ) noexcept
 {
     if ( this != &other )
     {
         QC::Memory::BufferDescriptor_t::operator=( other );
-        this->type = QC::QC_BUFFER_TYPE_CUSTOM_0;
+        this->type = QC::QC_BUFFER_TYPE_CUSTOM_3;
         this->timestampNs = other.timestampNs;
         this->frameId = other.frameId;
         this->orientation = other.orientation;
@@ -138,7 +145,31 @@ inline ImuDescriptor &ImuDescriptor::operator=( const ImuDescriptor &other )
     return *this;
 }
 
-inline ImuDescriptor &ImuDescriptor::operator=( const QC::Memory::QCBufferDescriptorBase_t &other )
+inline ImuDescriptor &ImuDescriptor::operator=( ImuDescriptor &&other ) noexcept
+{
+    // No heap buffer to steal: moving is a copy of the fixed-size members.
+    if ( this != &other )
+    {
+        QC::Memory::BufferDescriptor_t::operator=( std::move( other ) );
+        this->type = QC::QC_BUFFER_TYPE_CUSTOM_3;
+        this->timestampNs = other.timestampNs;
+        this->frameId = other.frameId;
+        this->orientation = other.orientation;
+        (void) std::copy( std::begin( other.orientation_covariance ), std::end( other.orientation_covariance ),
+                          std::begin( this->orientation_covariance ) );
+        this->angular_velocity = other.angular_velocity;
+        (void) std::copy( std::begin( other.angular_velocity_covariance ),
+                          std::end( other.angular_velocity_covariance ),
+                          std::begin( this->angular_velocity_covariance ) );
+        this->linear_acceleration = other.linear_acceleration;
+        (void) std::copy( std::begin( other.linear_acceleration_covariance ),
+                          std::end( other.linear_acceleration_covariance ),
+                          std::begin( this->linear_acceleration_covariance ) );
+    }
+    return *this;
+}
+
+inline ImuDescriptor &ImuDescriptor::operator=( const QC::Memory::QCBufferDescriptorBase_t &other ) noexcept
 {
     if ( this != &other )
     {
