@@ -76,7 +76,7 @@ public:
      * Copies all base-class fields; IMU-specific fields are left
      * unchanged so the caller can set them afterwards.
      */
-    ImuDescriptor &operator=( const QC::Memory::BufferDescriptor_t &other );
+    ImuDescriptor &operator=( const QC::Memory::BufferDescriptor_t &other ) noexcept;
 
     /**
      * @brief Copy-assign from another @c ImuDescriptor_t, copying every field one by one.
@@ -88,7 +88,7 @@ public:
      *
      * Dispatches to the most derived overload that @p other is an instance of.
      */
-    ImuDescriptor &operator=( const QC::Memory::QCBufferDescriptorBase_t &other );
+    ImuDescriptor &operator=( const QC::Memory::QCBufferDescriptorBase_t &other ) noexcept;
 
     // -------------------------------------------------------------------------
     // Data members
@@ -108,7 +108,7 @@ public:
 
 } ImuDescriptor_t;
 
-inline ImuDescriptor &ImuDescriptor::operator=( const QC::Memory::BufferDescriptor_t &other )
+inline ImuDescriptor &ImuDescriptor::operator=( const QC::Memory::BufferDescriptor_t &other ) noexcept
 {
     QC::Memory::BufferDescriptor_t::operator=( other );
     this->type = QC::QC_BUFFER_TYPE_CUSTOM_0;
@@ -138,7 +138,7 @@ inline ImuDescriptor &ImuDescriptor::operator=( const ImuDescriptor &other )
     return *this;
 }
 
-inline ImuDescriptor &ImuDescriptor::operator=( const QC::Memory::QCBufferDescriptorBase_t &other )
+inline ImuDescriptor &ImuDescriptor::operator=( const QC::Memory::QCBufferDescriptorBase_t &other ) noexcept
 {
     if ( this != &other )
     {
