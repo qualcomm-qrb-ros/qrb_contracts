@@ -22,11 +22,11 @@ namespace Memory
 
 /**
  * @struct PoseDescriptor_t
- * @brief Descriptor for a robotics pose buffer.
+ * @brief Descriptor for a robotics stamped pose buffer.
  *
- * Extends @c QC::Memory::BufferDescriptor_t to carry a single stamped pose with
- * covariance backed by a DMA buffer.
- * The layout mirrors ROS 2 @c geometry_msgs/PoseWithCovarianceStamped.
+ * Extends @c QC::Memory::BufferDescriptor_t to carry a single stamped pose without covariance.
+ * The layout mirrors ROS 2 @c geometry_msgs/PoseStamped. For a pose with a covariance, see
+ * @c PoseWithCovarianceDescriptor_t, which mirrors @c geometry_msgs/PoseWithCovarianceStamped.
  *
  * Inherited Members from QC::Memory::BufferDescriptor_t:
  * @param name          Human-readable buffer name.
@@ -38,18 +38,18 @@ namespace Memory
  * @param allocatorType Allocator used to allocate the buffer.
  * @param dmaHandle     DMA handle of the buffer.
  * @param pid           Process ID of the allocating process.
- * @param validSize     Number of bytes of valid pose data currently stored.
+ * @param validSize     Number of bytes of valid data currently stored.
  * @param offset        Byte offset of the valid data within the DMA buffer.
  * @param id            User-assigned identifier to distinguish the buffer.
  *
  * New Members:
- * @param timestampNs        Acquisition timestamp in nanoseconds (CLOCK_MONOTONIC),
- *                           matching ROS 2 std_msgs/Header.stamp.
- * @param frameId            Coordinate frame in which the pose is expressed
- *                           (e.g. "map", "odom"), matching ROS 2 std_msgs/Header.frame_id. A
- *                           @c FrameId_t, a fixed-capacity string of at most
- *                           QRB_FRAME_ID_MAX_LEN characters.
- * @param poseWithCovariance 6-DOF pose with a 6x6 covariance matrix.
+ * @param timestampNs  Acquisition timestamp in nanoseconds (CLOCK_MONOTONIC),
+ *                     matching ROS 2 std_msgs/Header.stamp.
+ * @param frameId      Coordinate frame in which the pose is expressed
+ *                     (e.g. "base_link", "camera_link"), matching ROS 2 std_msgs/Header.frame_id.
+ *                     A @c FrameId_t, a fixed-capacity string of at most QRB_FRAME_ID_MAX_LEN
+ *                     characters.
+ * @param pose         6-DOF pose (position and orientation quaternion).
  *
  * @note The descriptor has no dynamic length member (no std::string / std::vector), so copying it
  * never allocates, as required for buffer descriptors. The pose values are members of the
@@ -98,9 +98,9 @@ public:
     // Data members
     // -------------------------------------------------------------------------
 
-    uint64_t             timestampNs;        /**< Acquisition timestamp (ns, CLOCK_MONOTONIC). */
-    FrameId_t            frameId;            /**< Coordinate frame identifier. */
-    PoseWithCovariance_t poseWithCovariance; /**< 6-DOF pose with covariance. */
+    uint64_t  timestampNs;   /**< Acquisition timestamp (ns, CLOCK_MONOTONIC). */
+    FrameId_t frameId;       /**< Coordinate frame identifier. */
+    Pose_t    pose;          /**< 6-DOF pose. */
 
 } PoseDescriptor_t;
 
@@ -119,7 +119,7 @@ inline PoseDescriptor &PoseDescriptor::operator=( const PoseDescriptor &other ) 
         this->type = QC::QC_BUFFER_TYPE_CUSTOM_1;
         this->timestampNs = other.timestampNs;
         this->frameId = other.frameId;
-        this->poseWithCovariance = other.poseWithCovariance;
+        this->pose = other.pose;
     }
     return *this;
 }
@@ -133,7 +133,7 @@ inline PoseDescriptor &PoseDescriptor::operator=( PoseDescriptor &&other ) noexc
         this->type = QC::QC_BUFFER_TYPE_CUSTOM_1;
         this->timestampNs = other.timestampNs;
         this->frameId = other.frameId;
-        this->poseWithCovariance = other.poseWithCovariance;
+        this->pose = other.pose;
     }
     return *this;
 }
@@ -142,12 +142,12 @@ inline PoseDescriptor &PoseDescriptor::operator=( const QC::Memory::QCBufferDesc
 {
     if ( this != &other )
     {
-        const PoseDescriptor_t *pPoseDesc = dynamic_cast<const PoseDescriptor_t *>( &other );
+        const PoseDescriptor_t *pDesc = dynamic_cast<const PoseDescriptor_t *>( &other );
         const QC::Memory::BufferDescriptor_t *pBufDesc =
                 dynamic_cast<const QC::Memory::BufferDescriptor_t *>( &other );
-        if ( nullptr != pPoseDesc )
+        if ( nullptr != pDesc )
         {
-            PoseDescriptor::operator=( *pPoseDesc );
+            PoseDescriptor::operator=( *pDesc );
         }
         else if ( nullptr != pBufDesc )
         {

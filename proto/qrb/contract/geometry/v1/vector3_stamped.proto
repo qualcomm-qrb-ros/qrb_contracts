@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package qrb.contract.geometry.v1;
+
+import "qrb/contract/geometry/v1/vector3.proto";
+import "qrb/contract/common/v1/header.proto";
+
+// Mirrors geometry_msgs/Vector3Stamped.
+message Vector3Stamped {
+    qrb.contract.common.v1.Header header = 1;  // header.frame_id is the frame the vector is expressed in.
+    Vector3                       vector = 2;
+}

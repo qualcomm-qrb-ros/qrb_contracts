@@ -24,26 +24,34 @@ qrb_contracts/
 ├── include/
 │   └── QRB/Memory/
 │       ├── Common/
-│       │   └── Types.hpp                      # Shared geometry & sensor value types
+│       │   └── Types.hpp                         # Shared geometry & sensor value types
 │       ├── Geometry/
-│       │   └── PoseDescriptor.hpp             # PoseDescriptor
+│       │   ├── PoseWithCovarianceDescriptor.hpp  # PoseWithCovarianceDescriptor
+│       │   ├── PoseDescriptor.hpp                # PoseDescriptor
+│       │   ├── PoseArrayDescriptor.hpp           # PoseArrayDescriptor
+│       │   ├── TwistDescriptor.hpp               # TwistDescriptor
+│       │   ├── TFMessageDescriptor.hpp           # TFMessageDescriptor
+│       │   └── Vector3Descriptor.hpp             # Vector3Descriptor
 │       ├── Navigation/
-│       │   └── OdometryDescriptor.hpp         # OdometryDescriptor
+│       │   └── OdometryDescriptor.hpp            # OdometryDescriptor
 │       ├── Sensor/
-│       │   ├── ImuDescriptor.hpp              # ImuDescriptor
-│       │   ├── JointStateBufferDescriptor.hpp # JointState_t & JointStateBufferDescriptor_t
-│       │   └── PointCloudDescriptor.hpp       # PointCloudDescriptor
+│       │   ├── ImuDescriptor.hpp                 # ImuDescriptor
+│       │   ├── JointStateBufferDescriptor.hpp    # JointState_t & JointStateBufferDescriptor_t
+│       │   └── PointCloudDescriptor.hpp          # PointCloudDescriptor
 │       └── Vision/
-│           ├── ObjectDetectionDescriptor.hpp    # ObjectDetectionDescriptor (common base)
-│           ├── ObjectDetection2dDescriptor.hpp  # ObjectDetection2dDescriptor
-│           └── ObjectDetection3dDescriptor.hpp  # ObjectDetection3dDescriptor
+│           ├── ObjectDetectionDescriptor.hpp     # ObjectDetectionDescriptor (common base)
+│           ├── ObjectDetection2dDescriptor.hpp   # ObjectDetection2dDescriptor
+│           └── ObjectDetection3dDescriptor.hpp   # ObjectDetection3dDescriptor
 ├── proto/
 │   └── qrb/contract/
 │       ├── geometry/v1/
 │       │   ├── point.proto
 │       │   ├── vector3.proto
+│       │   ├── vector3_stamped.proto
 │       │   ├── quaternion.proto
 │       │   ├── pose.proto
+│       │   ├── pose_stamped.proto
+│       │   ├── pose_array.proto
 │       │   ├── pose_with_covariance.proto
 │       │   ├── pose_with_covariance_stamped.proto
 │       │   ├── transform.proto
@@ -82,12 +90,17 @@ and live in the `QRB::Memory` namespace.
 ```
 QC::Memory::QCBufferDescriptorBase_t
 └── QC::Memory::BufferDescriptor_t
-    ├── QRB::Memory::PoseDescriptor_t          (Geometry/PoseDescriptor.hpp)
-    ├── QRB::Memory::OdometryDescriptor_t      (Navigation/OdometryDescriptor.hpp)
-    ├── QRB::Memory::ImuDescriptor_t           (Sensor/ImuDescriptor.hpp)
-    ├── QRB::Memory::JointStateBufferDescriptor_t (Sensor/JointStateBufferDescriptor.hpp)
-    ├── QRB::Memory::PointCloudDescriptor_t    (Sensor/PointCloudDescriptor.hpp)
-    └── QRB::Memory::ObjectDetectionDescriptor_t      (Vision/ObjectDetectionDescriptor.hpp, abstract)
+    ├── QRB::Memory::PoseWithCovarianceDescriptor_t     (Geometry/PoseWithCovarianceDescriptor.hpp)
+    ├── QRB::Memory::PoseDescriptor_t                   (Geometry/PoseDescriptor.hpp)
+    ├── QRB::Memory::PoseArrayDescriptor_t              (Geometry/PoseArrayDescriptor.hpp)
+    ├── QRB::Memory::TwistDescriptor_t                  (Geometry/TwistDescriptor.hpp)
+    ├── QRB::Memory::TFMessageDescriptor_t              (Geometry/TFMessageDescriptor.hpp)
+    ├── QRB::Memory::Vector3Descriptor_t                (Geometry/Vector3Descriptor.hpp)
+    ├── QRB::Memory::OdometryDescriptor_t               (Navigation/OdometryDescriptor.hpp)
+    ├── QRB::Memory::ImuDescriptor_t                    (Sensor/ImuDescriptor.hpp)
+    ├── QRB::Memory::JointStateBufferDescriptor_t       (Sensor/JointStateBufferDescriptor.hpp)
+    ├── QRB::Memory::PointCloudDescriptor_t             (Sensor/PointCloudDescriptor.hpp)
+    └── QRB::Memory::ObjectDetectionDescriptor_t        (Vision/ObjectDetectionDescriptor.hpp, abstract)
         ├── QRB::Memory::ObjectDetection2dDescriptor_t  (Vision/ObjectDetection2dDescriptor.hpp)
         └── QRB::Memory::ObjectDetection3dDescriptor_t  (Vision/ObjectDetection3dDescriptor.hpp)
 ```
@@ -106,9 +119,63 @@ qcnode's `ImageDescriptor.hpp`. For example `PointFieldType_e` and `PointField_t
 
 ### Descriptors
 
-#### `PoseDescriptor_t`
+#### Geometry descriptors at a glance
+
+| ROS 2 message | Descriptor | Buffer type | Data |
+|---|---|---|---|
+| `geometry_msgs/PoseStamped` | `PoseDescriptor_t` | `CUSTOM_1` | members |
+| `geometry_msgs/PoseArray` | `PoseArrayDescriptor_t` | `CUSTOM_1` | `Pose_t` array in the buffer |
+| `geometry_msgs/PoseWithCovarianceStamped` | `PoseWithCovarianceDescriptor_t` | `CUSTOM_1` | members |
+| `geometry_msgs/TwistStamped` | `TwistDescriptor_t` | `CUSTOM_4` | members |
+| `tf2_msgs/TFMessage` | `TFMessageDescriptor_t` | `CUSTOM_4` | `TransformStamped_t` array in the buffer |
+| `geometry_msgs/Vector3Stamped` | `Vector3Descriptor_t` | `CUSTOM_4` | members |
+
+Descriptors share a buffer type, so tell them apart by their C++ type (`dynamic_cast`), not by
+`type`.
+
+Every descriptor carries a stamp, so descriptor names leave out `Stamped`: `PoseDescriptor_t`
+mirrors `PoseStamped`, `PoseWithCovarianceDescriptor_t` mirrors `PoseWithCovarianceStamped`,
+`TwistDescriptor_t` mirrors `TwistStamped` and `Vector3Descriptor_t` mirrors `Vector3Stamped`.
+
+Some `geometry_msgs` have no descriptor of their own on purpose. The bare `Pose` has no stamp and
+no frame and is hardly ever a topic: it travels as a `PoseStamped`. A single `TransformStamped`
+travels as a `TFMessage` of one transform, which is how ROS 2 exchanges transforms. A descriptor
+that only holds a subset of another one's data, for a ROS 2 message that is not a topic of its
+own, would be a second way to say the same thing.
+
+#### `PoseWithCovarianceDescriptor_t`
 Mirrors `geometry_msgs/PoseWithCovarianceStamped`. Carries a single stamped
 6-DOF pose with a 6×6 covariance matrix.
+
+#### `PoseDescriptor_t`
+Mirrors `geometry_msgs/PoseStamped`. Carries a single 6-DOF pose with the stamp
+(`timestampNs`) and the frame (`frameId`) it is expressed in, without covariance:
+the descriptor of a grasp, pre-grasp or place pose.
+
+#### `PoseArrayDescriptor_t`
+Mirrors `geometry_msgs/PoseArray`. Carries a list of poses that share one stamp
+and one frame, for example grasp candidates or waypoints. The poses are stored
+as a contiguous array of `Pose_t` in the buffer (`pBuf` + `offset`);
+`poseCount` records the number of valid entries. `PoseArrayProps_t` is the
+allocation request for a buffer of a given number of poses.
+
+Buffer layout:
+```
+pBuf → [ Pose_t[0] | Pose_t[1] | ... | Pose_t[poseCount-1] ]
+```
+
+#### `TwistDescriptor_t`
+Mirrors `geometry_msgs/TwistStamped`. Carries a single stamped velocity command
+(linear and angular).
+
+#### `TFMessageDescriptor_t`
+Mirrors `tf2_msgs/TFMessage`. Carries a list of `TransformStamped_t` stored as a
+contiguous array in the buffer; `transformCount` records the number of valid entries.
+A single transform, for example a hand-eye calibration, is a list of one.
+
+#### `Vector3Descriptor_t`
+Mirrors `geometry_msgs/Vector3Stamped`. Carries a single stamped 3-D vector, for
+example an approach or retreat direction.
 
 #### `OdometryDescriptor_t`
 Mirrors `nav_msgs/Odometry`. Carries the estimated pose (in `frameId`) and
@@ -213,8 +280,11 @@ code.
 | `std_msgs/Header` | `common/v1/header.proto` |
 | `geometry_msgs/Point` | `geometry/v1/point.proto` |
 | `geometry_msgs/Vector3` | `geometry/v1/vector3.proto` |
+| `geometry_msgs/Vector3Stamped` | `geometry/v1/vector3_stamped.proto` |
 | `geometry_msgs/Quaternion` | `geometry/v1/quaternion.proto` |
 | `geometry_msgs/Pose` | `geometry/v1/pose.proto` |
+| `geometry_msgs/PoseStamped` | `geometry/v1/pose_stamped.proto` |
+| `geometry_msgs/PoseArray` | `geometry/v1/pose_array.proto` |
 | `geometry_msgs/PoseWithCovariance` | `geometry/v1/pose_with_covariance.proto` |
 | `geometry_msgs/PoseWithCovarianceStamped` | `geometry/v1/pose_with_covariance_stamped.proto` |
 | `geometry_msgs/Transform` | `geometry/v1/transform.proto` |
