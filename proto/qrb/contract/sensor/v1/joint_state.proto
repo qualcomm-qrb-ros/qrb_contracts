@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package qrb.contract.sensor.v1;
+
+import "qrb/contract/common/v1/header.proto";
+
+// Mirrors sensor_msgs/JointState.
+// All joint states in a message are recorded at header.stamp.
+// Each measurement array must be empty or have the same length as name.
+// An empty measurement array means that measurement is not supplied; zero
+// values are valid measurements and must not be used to indicate absence.
+// Producers and consumers must validate these lengths: repeated fields do not
+// enforce the ROS array-size constraints.
+message JointState {
+    qrb.contract.common.v1.Header header   = 1;
+    repeated string              name     = 2;  // Joint identifiers.
+    repeated double              position = 3;  // rad (revolute) or m (prismatic).
+    repeated double              velocity = 4;  // rad/s (revolute) or m/s (prismatic).
+    repeated double              effort   = 5;  // N*m (revolute) or N (prismatic).
+}

@@ -31,6 +31,7 @@ qrb_contracts/
 │       │   └── OdometryDescriptor.hpp         # OdometryDescriptor
 │       ├── Sensor/
 │       │   ├── ImuDescriptor.hpp              # ImuDescriptor
+│       │   ├── JointStateBufferDescriptor.hpp # JointState_t & JointStateBufferDescriptor_t
 │       │   └── PointCloudDescriptor.hpp       # PointCloudDescriptor
 │       └── Vision/
 │           ├── ObjectDetectionDescriptor.hpp    # ObjectDetectionDescriptor (common base)
@@ -59,6 +60,7 @@ qrb_contracts/
 │       │   └── tf_message.proto
 │       ├── sensor/v1/
 │       │   ├── imu.proto
+│       │   ├── joint_state.proto
 │       │   ├── point_field.proto
 │       │   └── point_cloud2.proto
 │       └── vision/v1/
@@ -83,6 +85,7 @@ QC::Memory::QCBufferDescriptorBase_t
     ├── QRB::Memory::PoseDescriptor_t          (Geometry/PoseDescriptor.hpp)
     ├── QRB::Memory::OdometryDescriptor_t      (Navigation/OdometryDescriptor.hpp)
     ├── QRB::Memory::ImuDescriptor_t           (Sensor/ImuDescriptor.hpp)
+    ├── QRB::Memory::JointStateBufferDescriptor_t (Sensor/JointStateBufferDescriptor.hpp)
     ├── QRB::Memory::PointCloudDescriptor_t    (Sensor/PointCloudDescriptor.hpp)
     └── QRB::Memory::ObjectDetectionDescriptor_t      (Vision/ObjectDetectionDescriptor.hpp, abstract)
         ├── QRB::Memory::ObjectDetection2dDescriptor_t  (Vision/ObjectDetection2dDescriptor.hpp)
@@ -115,6 +118,25 @@ velocity (in `childFrameId`), each with a 6×6 covariance matrix.
 Mirrors `sensor_msgs/Imu`. Carries a single IMU sample: the orientation
 quaternion, the angular velocity, and the linear acceleration. Each of the
 last three has a row-major 3×3 covariance matrix. Following the ROS convention, `covariance[0] == -1` means covariance is unknown.
+
+#### `JointStateBufferDescriptor_t`
+Mirrors `sensor_msgs/JointState`. Metadata is `timestampNs`, `frameId` and
+`jointCount`; the host-owned payload at `pBuf + offset` is an array of
+`JointState_t` records with a 63-byte-capacity name and `double` position,
+velocity and effort. All measurements are present; zero does not mean missing.
+Units are rad, rad/s, N·m for revolute joints and m, m/s, N for prismatic joints.
+
+Construct records in aligned storage, allocate enough bytes for the offset
+and `CalcBufferSize(jointCount)`, and set `validSize` to that payload size.
+`GetJointPtr()` checks index, full-frame bounds and alignment; copies retain
+buffer references, not payload ownership. Check fixed-string assignment status
+and agree on the timestamp clock domain. Identify the descriptor by C++ type,
+not the shared `QC_BUFFER_TYPE_CUSTOM_4` tag.
+
+The matching `sensor/v1/joint_state.proto` preserves ROS parallel arrays and
+independently missing measurements. `qrb_ros_adapter` supplies both conversion
+directions; conversion to HCM requires all three arrays for nonempty frames
+and rejects missing measurements rather than filling zeros.
 
 #### `PointCloudDescriptor_t`
 Mirrors `sensor_msgs/PointCloud2`. The raw point data is stored in the DMA
@@ -204,6 +226,7 @@ code.
 | `nav_msgs/Odometry` | `nav/v1/odometry.proto` |
 | `sensor_msgs/PointField` | `sensor/v1/point_field.proto` |
 | `sensor_msgs/Imu` | `sensor/v1/imu.proto` |
+| `sensor_msgs/JointState` | `sensor/v1/joint_state.proto` |
 | `sensor_msgs/PointCloud2` | `sensor/v1/point_cloud2.proto` |
 | `vision_msgs/ObjectHypothesis` | `vision/v1/object_hypothesis.proto` |
 | `vision_msgs/ObjectHypothesisWithPose` | `vision/v1/object_hypothesis_with_pose.proto` |
